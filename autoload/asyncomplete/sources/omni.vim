@@ -6,6 +6,15 @@ let g:loaded_autoload_asyncomplete_sources_omni = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
+function! asyncomplete#sources#omni#get_source_options(opts) abort
+  return extend({
+        \ 'refresh_pattern': '\%(\k\|\.\)',
+        \ 'config': {
+        \   'show_source_kind': 1
+        \ }
+        \}, a:opts)
+endfunction
+
 function! asyncomplete#sources#omni#completor(opt, ctx) abort
   try
     let l:col = a:ctx['col']
