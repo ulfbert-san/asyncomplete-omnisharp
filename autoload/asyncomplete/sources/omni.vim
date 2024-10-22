@@ -5,17 +5,8 @@ let g:loaded_autoload_asyncomplete_sources_omni = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
-function! asyncomplete#sources#omni#get_source_options(opts) abort
-  return extend({
-        \ 'refresh_pattern': '\%(\k\|\.\)',
-        \ 'config': {
-        \   'show_source_kind': 1
-        \ }
-        \}, a:opts)
-endfunction
-
 function! asyncomplete#sources#omni#completor(opt, ctx) abort
-  try
+  try      
     let l:col = a:ctx['col']
     let l:typed = a:ctx['typed']
 
@@ -25,12 +16,38 @@ function! asyncomplete#sources#omni#completor(opt, ctx) abort
     elseif l:startcol > l:col
       let l:startcol = l:col
     endif
+
     let l:base = l:typed[l:startcol : l:col]
     let l:matches = s:safe_omnifunc(0, l:base)
-    if a:opt['config']['show_source_kind']
-      let l:matches = map(copy(l:matches), function('s:append_kind'))
-    endif
-    call asyncomplete#complete(a:opt['name'], a:ctx, l:startcol + 1, l:matches)
+
+    let l:seen = {}
+    let l:filtered = []
+
+    " Filter duplicate entries out
+    for item in l:matches
+        if type(item) == type({})
+            if has_key(item, 'word')
+                let word = item['word']
+
+                if has_key(item, 'kind')
+                    let item['kind'] = toupper(item['kind'])
+                endif
+
+                if !has_key(l:seen, word)
+                    let seen[word] = 1
+                    call add(l:filtered, item)
+                endif
+            endif
+        else
+            if !has_key(l:seen, item)
+                let seen[item] = 1
+                call add(l:filtered, item)
+            endif
+        endif
+    endfor
+
+    call asyncomplete#complete(a:opt['name'], a:ctx, l:startcol + 1, l:filtered)
+
   catch
     call asyncomplete#log('omni', 'error', v:exception)
   endtry
@@ -48,15 +65,6 @@ function! s:safe_omnifunc(...) abort
   finally
     call setpos('.', cursor)
   endtry
-endfunction
-
-function! s:append_kind(key, val) abort
-  if type(a:val) == v:t_string
-    return { 'word': a:val, 'kind': 'o' }
-  endif
-
-  let a:val['kind'] = 'o'
-  return a:val
 endfunction
 
 let &cpo = s:save_cpo
